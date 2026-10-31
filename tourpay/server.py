@@ -23,6 +23,8 @@ def build(port):
     return pp, tools, Agent(tools, llm_from_env())
 
 def make_handler(pp, tools, agent):
+    demo = os.environ.get("DEMO_CAPTIONS") == "1"          # off by default; used only to record the demo video
+    caption = {"text": ""}
     class H(BaseHTTPRequestHandler):
         def log_message(self, *a): pass
         def _send(self, code, body, ctype="application/json; charset=utf-8", headers=None):
@@ -37,7 +39,8 @@ def make_handler(pp, tools, agent):
                 with open(os.path.join(ROOT, "static", "index.html"), "rb") as f: return self._send(200, f.read(), "text/html; charset=utf-8")
             if u.path == "/api/health":
                 _, src = fx.rates()
-                return self._send(200, {"paypal": "MOCK (no credentials)" if pp.mock else "SANDBOX", "brain": agent.llm.name if agent.llm else "rules", "fx": src})
+                return self._send(200, {"paypal": "MOCK (no credentials)" if pp.mock else "SANDBOX", "brain": agent.llm.name if agent.llm else "rules", "fx": src, "captions": demo})
+            if u.path == "/api/caption": return self._send(200, {"text": caption["text"] if demo else ""})
             if u.path == "/api/orders": return self._send(200, tools.list_orders())
             if u.path == "/api/summary": return self._send(200, tools.summary())
             if u.path == "/api/export.csv":
@@ -62,6 +65,8 @@ def make_handler(pp, tools, agent):
             n = int(self.headers.get("Content-Length") or 0)
             try: data = json.loads(self.rfile.read(n) or b"{}")
             except Exception: return self._send(400, {"error": "bad json"})
+            if self.path == "/api/caption" and demo:
+                caption["text"] = str(data.get("text", ""))[:300]; return self._send(200, {"ok": True})
             if self.path == "/api/chat":
                 return self._send(200, agent.handle(str(data.get("message", ""))[:1000]))
             return self._send(404, {"error": "not found"})
