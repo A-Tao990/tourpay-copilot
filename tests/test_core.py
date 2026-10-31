@@ -85,6 +85,12 @@ class HttpLayer(unittest.TestCase):
     def test_bad_or_huge_content_length(self):
         self.assertEqual(self.raw("POST", "/api/chat", {"Host": "localhost", "Content-Length": "abc"}), 400)
         self.assertEqual(self.raw("POST", "/api/chat", {"Host": "localhost", "Content-Length": "99999999"}), 413)
+    def test_cancel_redirect_and_ui_message(self):
+        import http.client
+        host, port = self.base[len("http://"):].split(":")
+        c = http.client.HTTPConnection(host, int(port), timeout=10); c.request("GET", "/paypal/cancel"); r = c.getresponse(); r.read(); c.close()
+        self.assertEqual((r.status, r.getheader("Location")), (302, "/?cancelled=1"))
+        self.assertIn("Payment cancelled", self.get("/"))                       # the page shows a message for ?cancelled=1
     def test_bad_input_does_not_crash_the_server(self):
         self.assertEqual(self.post("/api/chat", {"message": "x" * 5000}), 200)
         import urllib.error
