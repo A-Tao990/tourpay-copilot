@@ -15,20 +15,28 @@ Language models are good at understanding messy requests and bad at arithmetic. 
 - With no API key it runs entirely on built-in rules, so the demo never depends on a network model.
 
 ## Quick start for judges (no accounts or keys needed)
+Requires Python 3.9+ and nothing else (standard library only).
 ```bash
-git clone <this repo> && cd tourpay-copilot
+git clone https://github.com/A-Tao990/tourpay-copilot && cd tourpay-copilot
 python3 -m unittest discover -s tests      # 28 tests, offline
 python3 -m tourpay                          # open http://localhost:8080
 ```
-Without credentials the app runs in **mock PayPal + built-in rules** mode (clearly labelled in the page header); on the page, send `3 x 45k + 80k, pay in USD`, open the mock approval link, then say `confirm payment`. With your own PayPal **sandbox** credentials and an optional Gemini key (see below) it runs against the real sandbox and a real model.
+Without credentials the app runs in **mock PayPal + built-in rules** mode (clearly labelled in the page header). On the page, send `3 x 45k + 80k, pay in USD`, open the mock approval link, then say `confirm payment`, `status`, `refund`, or look at the merchant dashboard.
 
-## Run it (Python 3.9+, standard library only)
-```bash
-python3 -m unittest discover -s tests        # 28 tests
-python3 -m tourpay                           # http://localhost:8080, mock PayPal, rules brain
-```
-Real PayPal sandbox: create a sandbox REST app at developer.paypal.com, copy `.env.example` to `.env`, fill `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET`, restart. The header badge shows `PayPal: SANDBOX`.
-AI brain (optional, priority in this order): `ANTHROPIC_API_KEY` (Claude, default model `claude-haiku-5-5`, paid API), `GEMINI_API_KEY` (free tier available), or `LLM_BASE_URL` for any OpenAI-compatible server. The model is only called when the built-in rules cannot parse a message, so a demo costs cents.
+## Run it against the real PayPal sandbox and a real model (optional)
+No test credentials are shipped (they would be secrets); you create your own free ones in a few minutes:
+1. At developer.paypal.com open **Apps & Credentials → Sandbox** and use (or create) a REST app; copy its Client ID and Secret.
+2. `cp .env.example .env`, fill `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET`, restart. The header badge shows `PayPal: SANDBOX`. `python3 scripts/verify_sandbox.py` checks the credentials without printing them.
+3. Click **Pay with PayPal (sandbox)** on an order and log in with a sandbox *personal* (buyer) account from **Testing tools → Sandbox accounts**; the app captures automatically when you return.
+4. AI brain (optional, priority in this order): `GEMINI_API_KEY` (free tier, used in the demo video), `ANTHROPIC_API_KEY` (Claude, default model `claude-haiku-5-5`), or `LLM_BASE_URL` for any OpenAI-compatible server.
+
+## AI tools used, and how
+- **In the product (runtime): Google Gemini** (`gemini-3.5-flash-lite`, free tier, with fallbacks). It reads messy bills the rules cannot (Chinese numerals such as 三杯咖啡每杯四万五, Vietnamese number words), decides pay-vs-quote intent and answers small talk. Its output is validated and it never computes or sees money. Optional alternatives: Claude (Anthropic API) or any OpenAI-compatible server (neither verified live).
+- **PayPal developer platform:** Orders v2 (create, get, capture) and Payments v2 refunds, sandbox environment.
+- **In development: Claude Code and Codex** wrote and ran much of the code and tests under my direction.
+
+## New work during the hackathon
+The whole project was created during the Submission Period (first commit 2026-10-31; see the git history). No prior code was reused.
 
 ## Demo captions (only for recording the demo video)
 Set `DEMO_CAPTIONS=1` to enable a caption bar that a script can drive through `POST /api/caption`. It is off by default and has no effect otherwise.
@@ -39,7 +47,7 @@ Set `DEMO_CAPTIONS=1` to enable a caption bar that a script can drive through `P
 - **Model-assisted path verified live with Gemini (free tier, 2026-10-31):** Chinese numerals, Vietnamese number words, English number words, pay-vs-quote intent and off-topic refusal; plus offline tests with a fake model, including bad/unsafe model output. Model names go stale (`gemini-2.5-flash` returned 404 for a new account), so `Gemini` tries fallback models on 404/429/503. **Not verified live:** the Claude and OpenAI-compatible HTTP calls (need a key); every model error falls back to the rules brain.
 - Free-tier note: Google may use free-tier prompts to improve its models, so the app only sends the one-line bill message, never personal data.
 - Vietnamese strings were written with AI help and **need review by a native speaker**.
-- Supported currency list is a conservative set; verify against PayPal's current docs.
+- The 12 supported currencies (AUD, CAD, EUR, GBP, HKD, JPY, MYR, PHP, SGD, THB, TWD, USD) were each probed against the real sandbox on 2026-10-31; CNY was rejected by PayPal (`CURRENCY_NOT_SUPPORTED`) and is therefore not offered.
 
 ## Limits and legal notes
 Single-merchant demo: the agent remembers the last order per process, there is no authentication, and the server listens on localhost only. Amount parsing is rule-based with a model fallback; the app always echoes the interpreted VND amount and the converted value before the payer approves.
