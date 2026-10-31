@@ -33,7 +33,18 @@ def make_handler(pp, tools, agent):
             for k, v in (headers or {}).items(): self.send_header(k, v)
             self.end_headers(); self.wfile.write(b)
         def _redirect(self, url): self._send(302, b"", "text/plain", {"Location": url})
+        def _guard(self):
+            """Localhost-only app: refuse foreign Host headers (DNS rebinding) and cross-site Origins (CSRF from other web pages)."""
+            host = self.headers.get("Host", "")
+            name = host.split("]")[0] + "]" if host.startswith("[") else host.split(":")[0]
+            if name not in ("localhost", "127.0.0.1", "[::1]"):
+                self._send(403, {"error": "forbidden host"}); return False
+            origin = self.headers.get("Origin")
+            if origin and (urllib.parse.urlparse(origin).hostname or "") not in ("localhost", "127.0.0.1", "::1"):
+                self._send(403, {"error": "forbidden origin"}); return False
+            return True
         def do_GET(self):
+            if not self._guard(): return
             u = urllib.parse.urlparse(self.path); q = urllib.parse.parse_qs(u.query)
             if u.path == "/":
                 with open(os.path.join(ROOT, "static", "index.html"), "rb") as f: return self._send(200, f.read(), "text/html; charset=utf-8")
@@ -62,7 +73,10 @@ def make_handler(pp, tools, agent):
                 return self._redirect("/paypal/return?token=" + urllib.parse.quote(oid))
             return self._send(404, {"error": "not found"})
         def do_POST(self):
-            n = int(self.headers.get("Content-Length") or 0)
+            if not self._guard(): return
+            try: n = int(self.headers.get("Content-Length") or 0)
+            except ValueError: return self._send(400, {"error": "bad content-length"})
+            if n < 0 or n > 20_000: return self._send(413, {"error": "request too large"})
             try: data = json.loads(self.rfile.read(n) or b"{}")
             except Exception: return self._send(400, {"error": "bad json"})
             if self.path == "/api/caption" and demo:
