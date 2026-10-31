@@ -26,6 +26,61 @@ class Parse(unittest.TestCase):
         self.assertEqual(detect_currency("thanh toán bằng GBP"), "GBP"); self.assertEqual(detect_currency("no currency here"), "USD")
         self.assertEqual(detect_lang("你好"), "zh"); self.assertEqual(detect_lang("xin chào bạn"), "vi"); self.assertEqual(detect_lang("hello"), "en")
 
+class TooSmall(unittest.TestCase):
+    def test_tiny_amounts_are_refused_before_calling_paypal(self):
+        pp, tools, _ = make_agent()
+        r = tools.create_payment(100, "USD")                                   # 100 VND = 0.00 USD
+        self.assertEqual(r["error"], "too_small"); self.assertEqual(tools.list_orders(), []); self.assertEqual(pp._mock_orders, {})
+
+class HttpLayer(unittest.TestCase):
+    """The real HTTP server, in mock mode, on an ephemeral port."""
+    @classmethod
+    def setUpClass(cls):
+        import threading
+        from http.server import ThreadingHTTPServer
+        from tourpay.server import make_handler
+        pp, tools, agent = make_agent()
+        cls.srv = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(pp, tools, agent))
+        cls.base = "http://127.0.0.1:%d" % cls.srv.server_address[1]
+        threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
+    @classmethod
+    def tearDownClass(cls):
+        cls.srv.shutdown(); cls.srv.server_close()
+    def get(self, path):
+        import urllib.request
+        return urllib.request.urlopen(self.base + path, timeout=10).read().decode()
+    def post(self, path, obj):
+        import json, urllib.error, urllib.request
+        req = urllib.request.Request(self.base + path, json.dumps(obj).encode(), {"Content-Type": "application/json"})
+        try: return urllib.request.urlopen(req, timeout=10).status
+        except urllib.error.HTTPError as e: return e.code
+    def chat(self, msg):
+        import json, urllib.request
+        req = urllib.request.Request(self.base + "/api/chat", json.dumps({"message": msg}).encode(), {"Content-Type": "application/json"})
+        return json.load(urllib.request.urlopen(req, timeout=10))
+    def test_full_flow_over_http(self):
+        import json
+        self.assertEqual(json.loads(self.get("/api/health"))["paypal"], "MOCK (no credentials)")
+        self.assertIn("TourPay Copilot", self.get("/"))
+        order = self.chat("3 x 45k + 80k, pay in USD")["order"]
+        self.assertEqual((order["amount_vnd"], order["value"]), (215000, "8.60"))
+        self.get("/mock/confirm?id=" + order["id"])                             # payer approves -> redirect -> capture
+        self.assertIn("COMPLETED", self.chat("status")["reply"])
+        summary = json.loads(self.get("/api/summary"))["today"]
+        self.assertEqual((summary["completed"], summary["vnd_collected"]), (1, 215000))
+        self.assertIn("COMPLETED", self.get("/api/export.csv"))
+        self.assertIn("Refund issued", self.chat("refund")["reply"])
+    def test_demo_caption_endpoint_is_off_by_default(self):
+        import json
+        self.assertEqual(json.loads(self.get("/api/caption"))["text"], "")
+        self.assertEqual(self.post("/api/caption", {"text": "x"}), 404)
+    def test_bad_input_does_not_crash_the_server(self):
+        self.assertEqual(self.post("/api/chat", {"message": "x" * 5000}), 200)
+        import urllib.error
+        with self.assertRaises(urllib.error.HTTPError) as cm: self.get("/nope")
+        self.assertEqual(cm.exception.code, 404)                                # unknown path -> 404, server keeps running
+        self.assertEqual(self.post("/api/chat", {"message": "hello"}), 200)
+
 class Listing(unittest.TestCase):
     def test_list_orders_hides_other_mode(self):
         pp, tools, ag = make_agent()
@@ -71,6 +126,11 @@ class ModelAssisted(unittest.TestCase):
         self.assertIn("上限", ag.handle("三杯咖啡每杯四万五")["reply"])               # replies in the user's language
 
 class Fx(unittest.TestCase):
+    def test_decimal_rounding_is_half_up_and_exact(self):
+        self.assertEqual(fx.quote(1, "USD")["value"], "0.00")                  # 1 VND at 25,000 VND/USD
+        self.assertEqual(fx.quote(125, "USD")["value"], "0.01")                # 0.005 rounds half up
+        self.assertEqual(fx.quote(215000, "USD")["value"], "8.60")
+        self.assertIsInstance(fx.quote(100000, "EUR")["value"], str)           # money is returned as an exact string
     def test_quote(self):
         q = fx.quote(250000, "USD"); self.assertEqual(q["value"], "10.00")
         self.assertEqual(fx.quote(250000, "JPY")["value"], "1500")            # zero-decimal currency
