@@ -29,6 +29,14 @@ T = {
  "too_small": {
   "en": "That amount is too small to charge ({vnd} VND converts to {value} {cur}).", "zh": "金额太小，无法收款（{vnd} 越南盾折合 {value} {cur}）。",
   "vi": "Số tiền quá nhỏ để thu ({vnd} VND quy đổi thành {value} {cur})."},
+ "bad_currency": {
+  "en": "Sorry, {code} is not supported in this demo. Please choose one of: {supported}.", "zh": "抱歉，本演示不支持 {code}。请从以下币种中选择：{supported}。",
+  "vi": "Xin lỗi, bản demo chưa hỗ trợ {code}. Vui lòng chọn một trong: {supported}."},
+ "negative": {
+  "en": "Amounts must be positive. Please tell me the bill total in VND.", "zh": "金额必须是正数，请告诉我越南盾账单总额。",
+  "vi": "Số tiền phải là số dương. Vui lòng cho tôi tổng hóa đơn bằng VND."},
+ "usd_fallback": {
+  "en": "That currency is not supported here, so I used USD. ", "zh": "不支持该币种，已改用美元。", "vi": "Loại tiền này chưa được hỗ trợ nên tôi dùng USD. "},
  "help": {
   "en": "Tell me an amount in VND and a currency, e.g. '3 x 45k + 80k, pay in USD'. I can quote it, create a PayPal (sandbox) payment link, check its status and capture it. Ask 'how can I pay' for payment options.",
   "zh": "告诉我越南盾金额和币种，例如“3 x 45k + 80k，用美元付”。我可以报价、创建 PayPal（沙盒）付款链接、查询状态并确认收款。问“怎么付款”可以了解付款方式。",
