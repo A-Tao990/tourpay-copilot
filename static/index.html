@@ -39,5 +39,6 @@ $('#f').onsubmit=async e=>{e.preventDefault();const t=$('#q').value.trim();if(!t
 $('#rf').onclick=orders;
 const p=new URLSearchParams(location.search);add('Hi! Tell me an amount in VND and the currency you want to pay in. I speak 中文 / English / Tiếng Việt.','b');
 if(p.get('paid'))add('PayPal returned for order '+p.get('paid')+'. Say "status" to check it.','b');
+if(p.get('cancelled'))add('Payment cancelled, nothing was charged. The order stays open; say "status" to check it, or send a new amount. / 已取消付款，未扣款。 / Đã hủy thanh toán, chưa bị trừ tiền.','b');
 health().then(h=>{if(h&&h.captions)setInterval(async()=>{try{const c=await (await fetch('/api/caption')).json();const e=$('#cap');e.textContent=c.text;e.style.display=c.text?'block':'none'}catch(_){}},400)});orders();summary();
 </script></body></html>
