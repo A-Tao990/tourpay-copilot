@@ -2,7 +2,8 @@
 small talk; all money maths and PayPal calls are deterministic tools. With no API key it runs fully on built-in rules."""
 import json, os, re, urllib.error, urllib.request
 from .i18n import t
-from .parse import detect_currency, detect_lang, total_vnd
+from .parse import detect_currency, detect_lang, has_negative, total_vnd, unsupported_currency
+from .tools import PAYPAL_CURRENCIES
 
 ORDER_RE = re.compile(r"\b(MOCK-[A-Z0-9]{6,}|[0-9A-Z]{17})\b")
 RX = {
@@ -103,6 +104,9 @@ class Agent:
         if RX["receipt"].search(text): return {"intent": "receipt", "order_id": oid}
         if RX["capture"].search(text) and (oid or self.last_order): return {"intent": "capture", "order_id": oid}
         if RX["status"].search(text) and (oid or self.last_order): return {"intent": "status", "order_id": oid}
+        if amount and has_negative(text): return {"intent": "negative"}
+        bad = unsupported_currency(text) or (cur if cur not in PAYPAL_CURRENCIES else None)
+        if amount and bad and not (RX["quote"].search(text) and not RX["pay"].search(text)): return {"intent": "bad_currency", "code": bad}
         if amount:
             if RX["pay"].search(text) and not RX["quote"].search(text): return {"intent": "pay", "amount_vnd": amount, "currency": cur}
             return {"intent": "quote" if RX["quote"].search(text) else "pay", "amount_vnd": amount, "currency": cur}
@@ -130,6 +134,12 @@ class Agent:
             u, brain = self._understand(text)
             oid = u.get("order_id") or self.last_order
             it = u["intent"]
+            if it == "negative":
+                return {"reply": t("negative", lang), "lang": lang, "brain": brain}
+            if it == "bad_currency":
+                return {"reply": t("bad_currency", lang, code=u["code"], supported=", ".join(sorted(PAYPAL_CURRENCIES))), "lang": lang, "brain": brain}
+            if it == "pay" and u.get("amount_vnd") and (u.get("currency") or "USD") not in PAYPAL_CURRENCIES:
+                return {"reply": t("bad_currency", lang, code=u["currency"], supported=", ".join(sorted(PAYPAL_CURRENCIES))), "lang": lang, "brain": brain}
             if it in ("quote", "pay") and not u.get("amount_vnd"):
                 return {"reply": t("help", lang), "lang": lang, "brain": brain}
             if it == "quote":
