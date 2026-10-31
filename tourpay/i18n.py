@@ -26,6 +26,9 @@ T = {
  "cannot_refund": {
   "en": "Order {oid} cannot be refunded (status {status}). Only completed payments can be refunded.", "zh": "订单 {oid} 无法退款（状态 {status}），只有已完成的付款才能退款。",
   "vi": "Đơn {oid} không thể hoàn tiền (trạng thái {status}). Chỉ thanh toán đã hoàn tất mới được hoàn tiền."},
+ "too_small": {
+  "en": "That amount is too small to charge ({vnd} VND converts to {value} {cur}).", "zh": "金额太小，无法收款（{vnd} 越南盾折合 {value} {cur}）。",
+  "vi": "Số tiền quá nhỏ để thu ({vnd} VND quy đổi thành {value} {cur})."},
  "help": {
   "en": "Tell me an amount in VND and a currency, e.g. '3 x 45k + 80k, pay in USD'. I can quote it, create a PayPal (sandbox) payment link, check its status and capture it. Ask 'how can I pay' for payment options.",
   "zh": "告诉我越南盾金额和币种，例如“3 x 45k + 80k，用美元付”。我可以报价、创建 PayPal（沙盒）付款链接、查询状态并确认收款。问“怎么付款”可以了解付款方式。",
