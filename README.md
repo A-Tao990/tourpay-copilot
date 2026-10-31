@@ -18,7 +18,7 @@ Language models are good at understanding messy requests and bad at arithmetic. 
 Requires Python 3.9+ and nothing else (standard library only).
 ```bash
 git clone https://github.com/A-Tao990/tourpay-copilot && cd tourpay-copilot
-python3 -m unittest discover -s tests      # 28 tests, offline
+python3 -m unittest discover -s tests      # 29 tests, offline
 python3 -m tourpay                          # open http://localhost:8080
 ```
 Without credentials the app runs in **mock PayPal + built-in rules** mode (clearly labelled in the page header). On the page, send `3 x 45k + 80k, pay in USD`, open the mock approval link, then say `confirm payment`, `status`, `refund`, or look at the merchant dashboard.
@@ -42,7 +42,7 @@ The whole project was created during the Submission Period (first commit 2026-10
 Set `DEMO_CAPTIONS=1` to enable a caption bar that a script can drive through `POST /api/caption`. It is off by default and has no effect otherwise.
 
 ## What is tested, and what is not (honest status)
-- Tested (offline, deterministic, 28 tests): amount parsing in zh/en/vi, FX maths with `Decimal` (exact, round half up, zero-decimal currencies), hostile inputs (dates, phone numbers, negatives), localhost-only request guards (Host/Origin checks), the full order lifecycle against a built-in **mock** PayPal, refunds, the merchant summary and CSV, multi-language replies, demo limits, a minimum-amount guard, unsupported-currency fallback, and the **real HTTP server** on an ephemeral port (full flow, 404s, oversized input).
+- Tested (offline, deterministic, 29 tests): amount parsing in zh/en/vi, FX maths with `Decimal` (exact, round half up, zero-decimal currencies), hostile inputs (dates, phone numbers, negatives), localhost-only request guards (Host/Origin checks), the full order lifecycle against a built-in **mock** PayPal, refunds, the merchant summary and CSV, multi-language replies, demo limits, a minimum-amount guard, unsupported-currency fallback, and the **real HTTP server** on an ephemeral port (full flow, 404s, oversized input).
 - **Verified against the real PayPal sandbox (2026-10-31):** OAuth, order creation (`PAYER_ACTION_REQUIRED`), buyer approval on the sandbox checkout, automatic capture through the return URL, final status `COMPLETED` with a capture id, and a full refund (`REFUNDED`). `scripts/verify_sandbox.py` checks credentials without printing them.
 - **Model-assisted path verified live with Gemini (free tier, 2026-10-31):** Chinese numerals, Vietnamese number words, English number words, pay-vs-quote intent and off-topic refusal; plus offline tests with a fake model, including bad/unsafe model output. Model names go stale (`gemini-2.5-flash` returned 404 for a new account), so `Gemini` tries fallback models on 404/429/503. **Not verified live:** the Claude and OpenAI-compatible HTTP calls (need a key); every model error falls back to the rules brain.
 - Free-tier note: Google may use free-tier prompts to improve its models, so the app only sends the one-line bill message, never personal data.
