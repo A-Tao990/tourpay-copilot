@@ -25,8 +25,12 @@ class PayPal:
             raw = urllib.request.urlopen(req, timeout=30).read()
             return json.loads(raw) if raw else {}
         except urllib.error.HTTPError as e:
-            detail = e.read().decode("utf-8", "ignore")[:600]
-            raise PayPalError("PayPal HTTP %s: %s" % (e.code, detail))
+            raw = e.read().decode("utf-8", "ignore")
+            try:
+                j = json.loads(raw); d = (j.get("details") or [{}])[0]
+                raise PayPalError("PayPal rejected the request (%s %s): %s" % (j.get("name", e.code), d.get("issue", ""), (d.get("description") or j.get("message") or "")[:160]))
+            except (ValueError, AttributeError):
+                raise PayPalError("PayPal HTTP %s: %s" % (e.code, raw[:200]))
 
     def _token(self):
         if self._tok and time.time() < self._tok_exp - 30:
