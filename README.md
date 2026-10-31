@@ -30,6 +30,9 @@ python3 -m tourpay                           # http://localhost:8080, mock PayPa
 Real PayPal sandbox: create a sandbox REST app at developer.paypal.com, copy `.env.example` to `.env`, fill `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET`, restart. The header badge shows `PayPal: SANDBOX`.
 AI brain (optional, priority in this order): `ANTHROPIC_API_KEY` (Claude, default model `claude-haiku-5-5`, paid API), `GEMINI_API_KEY` (free tier available), or `LLM_BASE_URL` for any OpenAI-compatible server. The model is only called when the built-in rules cannot parse a message, so a demo costs cents.
 
+## Demo captions (only for recording the demo video)
+Set `DEMO_CAPTIONS=1` to enable a caption bar that a script can drive through `POST /api/caption`. It is off by default and has no effect otherwise.
+
 ## What is tested, and what is not (honest status)
 - Tested (offline, deterministic): amount parsing in zh/en/vi, FX maths including zero-decimal currencies, the full order lifecycle against a built-in **mock** PayPal, multi-language replies, demo limits, unsupported-currency fallback.
 - Run end-to-end over HTTP in mock mode.
