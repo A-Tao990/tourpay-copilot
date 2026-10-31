@@ -6,7 +6,8 @@ from .i18n import t
 from .paypal_client import PayPal, PayPalError
 
 DEMO_LIMIT_VND = 50_000_000
-PAYPAL_CURRENCIES = {"USD", "EUR", "GBP", "AUD", "CAD", "SGD", "HKD", "JPY", "THB", "TWD", "MYR", "PHP", "CNY"}  # verify against PayPal docs
+# Probed against the real PayPal sandbox on 2026-10-31: these 12 were accepted; CNY was rejected (CURRENCY_NOT_SUPPORTED).
+PAYPAL_CURRENCIES = {"USD", "EUR", "GBP", "AUD", "CAD", "SGD", "HKD", "JPY", "THB", "TWD", "MYR", "PHP"}
 
 class Store:
     def __init__(self, path):
@@ -34,7 +35,7 @@ class Tools:
         currency = currency.upper()
         warn = ""
         if currency not in PAYPAL_CURRENCIES:
-            warn, currency = "currency not supported for PayPal here; using USD. ", "USD"
+            warn, currency = t("usd_fallback", lang), "USD"
         q = fx.quote(amount_vnd, currency)
         if Decimal(q["value"]) <= 0:
             return {"error": "too_small", "text": t("too_small", lang, vnd="{:,}".format(amount_vnd), value=q["value"], cur=currency)}
