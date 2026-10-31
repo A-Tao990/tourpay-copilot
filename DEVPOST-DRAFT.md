@@ -9,4 +9,6 @@
 **What we learned:** use models for language, code for money.
 **What's next:** native-speaker review of the Vietnamese, webhooks instead of polling, VietQR deep links, multi-merchant support with authentication.
 **Built with:** Python, PayPal Orders v2 + Refunds API (sandbox), Google Gemini (free tier), open.er-api.com exchange rates, Claude Code.
+**New work:** created entirely during the Submission Period (first commit 2026-10-31); no earlier code reused.
+**AI tools used:** Google Gemini free tier inside the product (understanding messy bills, intent, small talk; never money); Claude Code and Codex as development assistants.
 **Try it:** https://github.com/A-Tao990/tourpay-copilot (MIT). Quick start in the README needs no accounts or keys.
