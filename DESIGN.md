@@ -8,7 +8,7 @@ Money: all conversions use `Decimal` (round half up; whole numbers for JPY/HUF/T
 
 PayPal: OAuth2 client-credentials, `PayPal-Request-Id` for idempotency, the return URL carries `token=<order id>` and triggers capture; refunds use `/v2/payments/captures/{id}/refund`. A refunded order stays REFUNDED even though PayPal still reports the order as COMPLETED.
 
-Safeguards: unsupported currencies fall back to USD with a visible warning; the model cannot create amounts (it can only suggest an integer VND total that the code validates against the limits); every model error falls back to the rules brain; mock mode is clearly labelled; no secrets in the repo (`.env` is ignored); the server listens on localhost only.
+Safeguards: dates, times and phone numbers are never read as amounts; unsupported or PayPal-rejected currencies (the 12 supported ones were probed on the real sandbox; CNY is rejected) are refused instead of silently switched; Host/Origin checks and a request-size cap protect the local server; unsupported currencies fall back to USD with a visible warning; the model cannot create amounts (it can only suggest an integer VND total that the code validates against the limits); every model error falls back to the rules brain; mock mode is clearly labelled; no secrets in the repo (`.env` is ignored); the server listens on localhost only.
 
 Verified against the real PayPal sandbox: order creation, buyer approval, automatic capture, refund. Verified live with Gemini (free tier).
 
