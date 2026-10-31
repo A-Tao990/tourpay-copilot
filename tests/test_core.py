@@ -74,6 +74,17 @@ class HttpLayer(unittest.TestCase):
         import json
         self.assertEqual(json.loads(self.get("/api/caption"))["text"], "")
         self.assertEqual(self.post("/api/caption", {"text": "x"}), 404)
+    def raw(self, method, path, headers, body=None):
+        import http.client
+        host, port = self.base[len("http://"):].split(":")
+        c = http.client.HTTPConnection(host, int(port), timeout=10); c.request(method, path, body, headers); r = c.getresponse(); r.read(); c.close(); return r.status
+    def test_foreign_host_and_cross_site_origin_are_refused(self):
+        self.assertEqual(self.raw("GET", "/api/health", {"Host": "evil.example"}), 403)             # DNS rebinding
+        self.assertEqual(self.raw("POST", "/api/chat", {"Host": "localhost:8080", "Origin": "https://evil.example", "Content-Type": "application/json"}, b'{"message":"pay 450k"}'), 403)   # CSRF
+        self.assertEqual(self.raw("POST", "/api/chat", {"Host": "localhost:8080", "Origin": "http://localhost:8080", "Content-Type": "application/json"}, b'{"message":"hello"}'), 200)
+    def test_bad_or_huge_content_length(self):
+        self.assertEqual(self.raw("POST", "/api/chat", {"Host": "localhost", "Content-Length": "abc"}), 400)
+        self.assertEqual(self.raw("POST", "/api/chat", {"Host": "localhost", "Content-Length": "99999999"}), 413)
     def test_bad_input_does_not_crash_the_server(self):
         self.assertEqual(self.post("/api/chat", {"message": "x" * 5000}), 200)
         import urllib.error
@@ -124,6 +135,43 @@ class ModelAssisted(unittest.TestCase):
     def test_model_amount_cannot_exceed_demo_limit(self):
         ag, _ = self.agent('{"intent":"pay","amount_vnd":99999999999,"currency":"USD"}')
         self.assertIn("上限", ag.handle("三杯咖啡每杯四万五")["reply"])               # replies in the user's language
+
+class ParseRegressions(unittest.TestCase):
+    """Inputs that used to produce wrong money."""
+    def test_dates_times_and_phones_are_not_amounts(self):
+        self.assertEqual(total_vnd("booked on 2026-11-05, total 300k"), 300000)    # was 302,026
+        self.assertEqual(total_vnd("my phone is 0901234567 please pay 200k"), 200000)  # was 901 million
+        self.assertEqual(total_vnd("call +84 901 234 567 total 80k"), 80000)
+        self.assertEqual(total_vnd("1/12/2026 pay 90k"), 90000)
+        self.assertEqual(total_vnd("at 10:30 pay 200k"), 200000)
+        self.assertEqual(total_vnd("in 2026 pay 450000"), 450000)
+        self.assertIsNone(total_vnd("hello 2026")); self.assertIsNone(total_vnd("pay 3"))
+    def test_vietnamese_shorthand(self):
+        self.assertEqual(total_vnd("pay 1tr2 USD"), 1200000)                          # was 1,000,000
+        self.assertEqual(total_vnd("pay 2tr5"), 2500000); self.assertEqual(total_vnd("pay 45k5"), 45500)
+        self.assertEqual(total_vnd("pay 1,5 triệu EUR"), 1500000); self.assertEqual(total_vnd("pay 1.5k"), 1500)
+    def test_chinese_and_explicit_vnd(self):
+        self.assertEqual(total_vnd("100万越南盾"), 1000000); self.assertEqual(total_vnd("三杯咖啡 4万5"), 45000)
+        self.assertEqual(total_vnd("pay 5000 VND"), 5000); self.assertEqual(total_vnd("pay 45.000"), 45000)
+
+class SafetyReplies(unittest.TestCase):
+    def test_unsupported_currency_is_refused_not_silently_usd(self):
+        _, tools, ag = make_agent()
+        r = ag.handle("pay 450k in RUB"); self.assertNotIn("order", r); self.assertIn("RUB", r["reply"]); self.assertEqual(tools.list_orders(), [])
+        self.assertIn("RUB", ag.handle("用 RUB 付 450k")["reply"])
+    def test_cny_is_refused_because_paypal_rejects_it(self):                    # probed on the real sandbox: CURRENCY_NOT_SUPPORTED
+        _, tools, ag = make_agent()
+        r = ag.handle("账单 450,000 越南盾,用人民币付"); self.assertNotIn("order", r); self.assertIn("CNY", r["reply"]); self.assertIn("USD", r["reply"])
+        self.assertEqual(tools.list_orders(), [])
+        self.assertIn("quote", ag.handle("450k 越南盾折合多少人民币？"))          # a quote in CNY is still fine (no PayPal call)
+    def test_negative_amount_is_refused(self):
+        _, tools, ag = make_agent()
+        r = ag.handle("pay -450k"); self.assertNotIn("order", r); self.assertEqual(tools.list_orders(), [])
+    def test_currency_fallback_warning_is_localized(self):
+        _, tools, _ = make_agent()
+        self.assertIn("改用美元", tools.create_payment(100000, "RUB", "x", "zh")["text"])
+        self.assertNotIn("CNY", __import__("tourpay.tools", fromlist=["x"]).PAYPAL_CURRENCIES)
+        self.assertIn("dùng USD", tools.create_payment(100000, "RUB", "x", "vi")["text"])
 
 class Fx(unittest.TestCase):
     def test_decimal_rounding_is_half_up_and_exact(self):
