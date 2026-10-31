@@ -2,10 +2,11 @@
 **Name:** TourPay Copilot
 **Tagline:** An AI payment assistant that lets a tourist in Vietnam pay a VND bill through PayPal, in Chinese, English or Vietnamese.
 **Inspiration:** I live in Vietnam. Small shops price in dong, tourists arrive from everywhere, and PayPal cannot settle in dong. Closing the gap takes a calculator, a translator and a payment link.
-**What it does:** (see README) understands a bill in three languages, converts at a live rate, creates and tracks a PayPal order, captures after approval, issues a receipt, refunds, gives the merchant a reconciliation dashboard with CSV export, and explains local payment options honestly.
-**How we built it:** Python standard library only; PayPal Orders v2 (sandbox); deterministic tools for all money logic; optional LLM only for understanding; mock PayPal for tests; built with AI coding agents under my direction.
-**Challenges:** keeping the language model away from arithmetic; VND is not a PayPal currency; zero-decimal currencies; honest labelling of what is verified.
-**Accomplishments:** end-to-end order lifecycle with tests; works with no API key; trilingual replies.
+**What it does:** A tourist (or the shopkeeper) writes the bill in plain words, in Chinese, English or Vietnamese. The app sums the items, converts them at a live rate, creates a PayPal order, hands over the payer link, captures the payment after approval, and issues a receipt in the payer's language. Merchants get a reconciliation dashboard with CSV export and can refund a payment. It also answers "how can I pay in Vietnam?" honestly, including that cryptocurrency is not legal tender for payments there.
+**How we built it:** Python standard library only. PayPal Orders v2 and the refunds API (sandbox). The language model (Gemini, free tier) is used only to understand messy requests; every amount, rate, PayPal call and receipt comes from deterministic code that uses exact `Decimal` arithmetic. Rules run first and the model only fills in what they cannot parse, and its output is validated. A built-in mock PayPal makes the whole flow testable offline. I built it with AI coding agents (Claude Code and Codex) under my direction; I set the goals, made the judgment calls and verified the results.
+**Challenges:** keeping the language model away from arithmetic; VND is not a PayPal currency; zero-decimal currencies; model names that go stale (a free-tier model returned 404 for a new account, so the app falls back to other models); and being honest about what is verified live versus only tested offline.
+**Accomplishments:** the full order lifecycle verified against the real PayPal sandbox (create, approve, capture, refund); 19 automated tests including the real HTTP server; it runs with no keys at all in mock mode, so judges can try it in a minute; trilingual replies.
 **What we learned:** use models for language, code for money.
-**What's next:** native-speaker review, webhooks instead of polling, QR deep links, multi-merchant support.
-**Built with:** Python, PayPal Orders v2 API, open.er-api.com FX, optional Gemini / any OpenAI-compatible model.
+**What's next:** native-speaker review of the Vietnamese, webhooks instead of polling, VietQR deep links, multi-merchant support with authentication.
+**Built with:** Python, PayPal Orders v2 + Refunds API (sandbox), Google Gemini (free tier), open.er-api.com exchange rates, Claude Code.
+**Try it:** https://github.com/A-Tao990/tourpay-copilot (MIT). Quick start in the README needs no accounts or keys.
