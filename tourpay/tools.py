@@ -1,5 +1,6 @@
 """Deterministic tools the agent can call. Money maths is done here, never by the language model."""
 import json, os, threading, time, uuid
+from decimal import Decimal
 from . import fx
 from .i18n import t
 from .paypal_client import PayPal, PayPalError
@@ -35,6 +36,8 @@ class Tools:
         if currency not in PAYPAL_CURRENCIES:
             warn, currency = "currency not supported for PayPal here; using USD. ", "USD"
         q = fx.quote(amount_vnd, currency)
+        if Decimal(q["value"]) <= 0:
+            return {"error": "too_small", "text": t("too_small", lang, vnd="{:,}".format(amount_vnd), value=q["value"], cur=currency)}
         ref = "tp-" + uuid.uuid4().hex[:16]
         o = self.pp.create_order(q["value"], currency, description, ref)
         rec = {"id": o["id"], "ref": ref, "amount_vnd": amount_vnd, "currency": currency, "value": q["value"], "vnd_per_unit": q["vnd_per_unit"],
@@ -83,8 +86,8 @@ class Tools:
             done = [o for o in os_ if o["status"] == "COMPLETED"]; ref = [o for o in os_ if o["status"] == "REFUNDED"]
             def by(lst):
                 d = {}
-                for o in lst: d[o["currency"]] = round(d.get(o["currency"], 0) + float(o["value"]), 2)
-                return d
+                for o in lst: d[o["currency"]] = d.get(o["currency"], Decimal(0)) + Decimal(o["value"])
+                return {k: float(v) for k, v in d.items()}
             return {"orders": len(os_), "completed": len(done), "refunded": len(ref), "pending": len(os_) - len(done) - len(ref),
                     "vnd_collected": sum(o["amount_vnd"] for o in done), "collected_by_currency": by(done), "refunded_by_currency": by(ref)}
         return {"date": str(today), "timezone": "UTC+7 (Vietnam)", "today": agg([o for o in orders if datetime.fromtimestamp(o["created"], vn).date() == today]), "all": agg(orders)}
