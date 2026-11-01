@@ -23,6 +23,28 @@ T = {
  "refunded": {
   "en": "Refund issued for order {oid}: {value} {cur}. Refund id {rid}.", "zh": "订单 {oid} 已退款：{value} {cur}。退款编号 {rid}。",
   "vi": "Đã hoàn tiền đơn {oid}: {value} {cur}. Mã hoàn tiền {rid}."},
+ "refund_confirm": {
+  "en": "Refund request: order {oid}, {value} {cur} (full amount, back to the payer). NOTHING has been refunded yet. Reply 'confirm refund' within {secs} seconds to proceed; anything else cancels.",
+  "zh": "退款申请：订单 {oid}，{value} {cur}（全额退回付款人）。目前尚未退款。请在 {secs} 秒内回复“确认退款”继续；回复其他内容将取消。",
+  "vi": "Yêu cầu hoàn tiền: đơn {oid}, {value} {cur} (hoàn toàn bộ cho người trả). CHƯA hoàn tiền. Trả lời 'xác nhận hoàn tiền' trong {secs} giây để tiếp tục; trả lời nội dung khác sẽ hủy."},
+ "refund_declined": {
+  "en": "OK - no refund was made. Nothing was changed.", "zh": "好的，没有退款，一切保持不变。", "vi": "Được, không hoàn tiền. Không có gì thay đổi."},
+ "refund_info": {
+  "en": "Nothing was refunded. Only COMPLETED payments can be refunded, always the full amount back to the payer. To start one, say 'refund' or 'refund <order id>'; I will show the order and amount and ask you to confirm first.",
+  "zh": "没有进行任何退款。只有状态为 COMPLETED 的付款可以退款，且为全额退回付款人。要发起退款，请说“退款”或“退款 <订单号>”；我会先显示订单和金额，等你确认后才会执行。",
+  "vi": "Chưa hoàn tiền gì cả. Chỉ thanh toán COMPLETED mới được hoàn tiền, luôn hoàn toàn bộ cho người trả. Để bắt đầu, hãy nói 'hoàn tiền' hoặc 'hoàn tiền <mã đơn>'; tôi sẽ hiển thị đơn và số tiền rồi hỏi bạn xác nhận trước."},
+ "refund_cancelled": {
+  "en": "Refund cancelled - nothing was refunded.", "zh": "退款已取消，没有退款。", "vi": "Đã hủy hoàn tiền - chưa hoàn tiền gì."},
+ "refund_none_pending": {
+  "en": "There is no refund waiting for confirmation (none requested, or it expired or changed). Nothing was refunded. Say 'refund' to start again.",
+  "zh": "当前没有待确认的退款（未发起、已过期或已变更），没有退款。需要的话请重新说“退款”。",
+  "vi": "Hiện không có yêu cầu hoàn tiền nào chờ xác nhận (chưa yêu cầu, đã hết hạn hoặc đã thay đổi). Chưa hoàn tiền gì. Hãy nói 'hoàn tiền' để bắt đầu lại."},
+ "capture_declined": {
+  "en": "OK - I did not record any payment. Nothing was changed.", "zh": "好的，没有确认收款，一切保持不变。", "vi": "Được, tôi không ghi nhận thanh toán. Không có gì thay đổi."},
+ "capture_info": {
+  "en": "Nothing was captured. Say 'confirm payment' (after the payer approved on PayPal) to record the payment; 'status' shows where an order stands.",
+  "zh": "没有确认任何收款。付款人在 PayPal 批准后，说“确认收款”即可记录付款；说“状态”可查看订单进度。",
+  "vi": "Chưa ghi nhận thanh toán nào. Sau khi người trả đã xác nhận trên PayPal, hãy nói 'xác nhận thanh toán' để ghi nhận; 'trạng thái' cho biết tình trạng đơn."},
  "cannot_refund": {
   "en": "Order {oid} cannot be refunded (status {status}). Only completed payments can be refunded.", "zh": "订单 {oid} 无法退款（状态 {status}），只有已完成的付款才能退款。",
   "vi": "Đơn {oid} không thể hoàn tiền (trạng thái {status}). Chỉ thanh toán đã hoàn tất mới được hoàn tiền."},
