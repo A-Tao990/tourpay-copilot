@@ -5,5 +5,5 @@ The recorded demo follows this order (it is produced by a script that drives the
 3. (0:36) An English bill ("3 x 45k + 80k, pay in USD"), then "Pay with PayPal" opens the sandbox checkout.
 4. (0:55) The payer approves; the app captures automatically and the order is COMPLETED.
 5. (1:10) A Vietnamese quote, then the honest "how can I pay in Vietnam?" answer (crypto is not legal tender for payments in Vietnam).
-6. (1:45) Merchant dashboard (today's totals by currency, CSV export) and a real PayPal refund.
+6. (1:45) Merchant dashboard (today's totals by currency, CSV export) and a PayPal refund in two steps: `refund` shows "order, amount, NOTHING refunded yet", then `confirm refund` (within 2 minutes, same order) sends it. Optionally show that "please don't refund" refunds nothing. (Take 6 in the recorded video predates this: it shows the earlier one-step refund.)
 7. (2:10) Closing: open source (MIT), tests, runs with no keys in mock mode, repository address.
