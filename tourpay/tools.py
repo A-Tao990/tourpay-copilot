@@ -68,6 +68,12 @@ class Tools:
                 self.store.orders[order_id].update(status=c["status"], capture_id=c.get("capture_id")); self.store.save()
         return {**c, "text": t("captured", lang, oid=order_id, status=c["status"], cap=c.get("capture_id"))}
 
+    def refund_preview(self, order_id):
+        """Read-only: the stored order if it can be refunded now, else None. Never calls PayPal."""
+        o = self.store.orders.get(order_id)
+        if not o: raise PayPalError("unknown order")
+        return o if (o["status"] == "COMPLETED" and o.get("capture_id")) else None
+
     def refund_payment(self, order_id, lang="en"):
         o = self.store.orders.get(order_id)
         if not o: raise PayPalError("unknown order")

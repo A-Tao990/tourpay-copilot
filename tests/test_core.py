@@ -69,7 +69,8 @@ class HttpLayer(unittest.TestCase):
         summary = json.loads(self.get("/api/summary"))["today"]
         self.assertEqual((summary["completed"], summary["vnd_collected"]), (1, 215000))
         self.assertIn("COMPLETED", self.get("/api/export.csv"))
-        self.assertIn("Refund issued", self.chat("refund")["reply"])
+        self.assertIn("NOTHING has been refunded", self.chat("refund")["reply"])
+        self.assertIn("Refund issued", self.chat("confirm refund")["reply"])
     def test_demo_caption_endpoint_is_off_by_default(self):
         import json
         self.assertEqual(json.loads(self.get("/api/caption"))["text"], "")
@@ -113,7 +114,9 @@ class RefundAndSummary(unittest.TestCase):
         self.assertIn("cannot", ag.handle("refund")["reply"].lower())        # not paid yet
         pp.mock_approve(oid); ag.handle("confirm payment")
         s = tools.summary()["today"]; self.assertEqual((s["completed"], s["vnd_collected"], s["collected_by_currency"]), (1, 100000, {"USD": 4.0}))
-        self.assertIn("Refund issued", ag.handle("refund")["reply"])
+        self.assertIn("NOTHING has been refunded", ag.handle("refund")["reply"])      # step 1: summary only
+        self.assertEqual(tools.store.orders[oid]["status"], "COMPLETED")                # still not refunded
+        self.assertIn("Refund issued", ag.handle("confirm refund")["reply"])          # step 2: explicit confirmation
         self.assertIn("REFUNDED", ag.handle("status")["reply"])               # stays REFUNDED after a status check
         s = tools.summary()["today"]; self.assertEqual((s["completed"], s["refunded"], s["refunded_by_currency"]), (0, 1, {"USD": 4.0}))
         csv_text = tools.export_csv(); self.assertTrue(csv_text.startswith("order_id,")); self.assertIn("REFUNDED", csv_text)

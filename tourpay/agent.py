@@ -1,6 +1,7 @@
 """The agent. Language models are used ONLY to understand messy requests (intent + amounts + currency) and to answer
 small talk; all money maths and PayPal calls are deterministic tools. With no API key it runs fully on built-in rules."""
-import json, os, re, urllib.error, urllib.request
+import json, os, re, time, urllib.error, urllib.request
+from .guard import is_confirmation, speech_act
 from .i18n import t
 from .parse import detect_currency, detect_lang, has_negative, total_vnd, unsupported_currency
 from .tools import PAYPAL_CURRENCIES
@@ -90,9 +91,16 @@ Intent: use "pay" when the customer wants to pay or names a payment currency to 
 Rules: never invent amounts; sum line items yourself (e.g. 3 cups at 45k plus a 80k cake = 215000). "k"=thousand, "tr"/"triệu"=million. If unsure use null.
 User message: """
 
+REFUND_CONFIRM_SECS = 120
+
 class Agent:
-    def __init__(self, tools, llm=None):
+    """Safety design: whatever produced the intent (rules or a model), money only moves through `_confirm_refund`.
+    A refund intent can only ever PROPOSE a refund (`_propose_refund`, read-only); the next message must be an explicit
+    yes for that same order within REFUND_CONFIRM_SECS. Any other message drops the proposal. Capture is not confirmed
+    twice (the payer already approved on PayPal) but it is never run for negated or question-form messages."""
+    def __init__(self, tools, llm=None, clock=time.monotonic):
         self.tools, self.llm, self.last_order = tools, llm, None
+        self.clock, self.pending_refund = clock, None      # {"oid", "value", "cur", "expires"}
 
     # ---- understanding
     def _rules(self, text):
@@ -131,9 +139,18 @@ class Agent:
     def handle(self, text):
         lang = detect_lang(text)
         try:
+            early = self._pending_step(text, lang)
+            if early: return early
             u, brain = self._understand(text)
-            oid = u.get("order_id") or self.last_order
+            # an order id counts only if the USER typed it; a model-supplied id can never redirect a refund/capture
+            typed = ORDER_RE.search(text.upper())
+            oid = (typed.group(1) if typed else None) or self.last_order
             it = u["intent"]
+            if it in ("refund", "capture"):
+                act = speech_act(text, RX[it] if RX[it].search(text) else None)
+                if act != "command":
+                    key = {"refund": ("refund_declined", "refund_info"), "capture": ("capture_declined", "capture_info")}[it]
+                    return {"reply": t(key[0] if act == "negated" else key[1], lang), "lang": lang, "brain": brain, "guard": act}
             if it == "negative":
                 return {"reply": t("negative", lang), "lang": lang, "brain": brain}
             if it == "bad_currency":
@@ -154,7 +171,7 @@ class Agent:
             if it == "capture" and oid:
                 c = self.tools.capture_payment(oid, lang); return {"reply": c["text"], "lang": lang, "brain": brain, "order": c}
             if it == "refund" and oid:
-                r = self.tools.refund_payment(oid, lang); return {"reply": r["text"], "lang": lang, "brain": brain, "order": r}
+                return self._propose_refund(oid, lang, brain)
             if it == "receipt" and oid:
                 return {"reply": self.tools.receipt(oid, lang), "lang": lang, "brain": brain}
             if it == "options":
@@ -162,3 +179,39 @@ class Agent:
             return {"reply": u.get("reply") or t("help", lang), "lang": lang, "brain": brain}
         except Exception as e:
             return {"reply": t("error", lang, err=str(e)[:200]), "lang": lang, "brain": "error"}
+
+    # ---- refund: propose (read-only), then confirm (the only place that refunds)
+    def _propose_refund(self, oid, lang, brain):
+        self.pending_refund = None
+        o = self.tools.refund_preview(oid)
+        if not o:
+            st = self.tools.store.orders[oid]["status"]
+            return {"reply": t("cannot_refund", lang, oid=oid, status=st), "lang": lang, "brain": brain}
+        self.pending_refund = {"oid": oid, "value": o["value"], "cur": o["currency"], "expires": self.clock() + REFUND_CONFIRM_SECS}
+        return {"reply": t("refund_confirm", lang, oid=oid, value=o["value"], cur=o["currency"], secs=REFUND_CONFIRM_SECS),
+                "lang": lang, "brain": brain, "refund_pending": {"order_id": oid, "value": o["value"], "currency": o["currency"]}}
+
+    def _pending_step(self, text, lang):
+        """Runs before any understanding (rules or model). Returns a reply when this message is about a pending refund."""
+        p, self.pending_refund = self.pending_refund, None          # one-shot: every message consumes the proposal
+        typed = ORDER_RE.search(text.upper())
+        tid = typed.group(1) if typed else None
+        bare = re.sub(re.escape(tid), "", text, flags=re.I) if tid else text
+        if not is_confirmation(bare):
+            if p and total_vnd(text) is None and speech_act(text) == "negated":
+                return {"reply": t("refund_cancelled", lang), "lang": lang, "brain": "rules"}
+            return None
+        mentions_refund = bool(RX["refund"].search(text)) or "确认退款" in text
+        if p is None:
+            return {"reply": t("refund_none_pending", lang), "lang": lang, "brain": "rules"} if mentions_refund else None
+        try:
+            ok = (self.clock() <= p["expires"] and (not tid or tid == p["oid"]))
+            cur = self.tools.refund_preview(p["oid"]) if ok else None
+            ok = bool(cur) and cur["value"] == p["value"] and cur["currency"] == p["cur"]
+        except Exception:
+            ok = False
+        if not ok:
+            return {"reply": t("refund_none_pending", lang), "lang": lang, "brain": "rules"}
+        r = self.tools.refund_payment(p["oid"], lang)
+        return {"reply": r["text"], "lang": lang, "brain": "rules", "order": r}
+
